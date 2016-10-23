@@ -21,15 +21,15 @@ import android.view.SurfaceView;
 
 public class GameSurface extends SurfaceView implements SurfaceHolder.Callback, Runnable {
     private static String LOG_TAG = "GameSurface";
-    private static int FPS = 60;
+    private static int FPS = 80;
     private static float defaultXPosition = 300;
     private static float minYPosition = 0;
     private static float maxYPosition;
-    private static float defaultAcceleration = 50;
+    private static float defaultAcceleration = 3.5f;
     private Thread thread;
     private Bitmap background;
     private PhysicsEngine physicsEngine;
-    private Sprite cubeGuy;
+    private CubeGuy cubeGuy;
     private int screenWidth;
     private int characterHeight;
     private int characterWidth;
@@ -84,9 +84,9 @@ public class GameSurface extends SurfaceView implements SurfaceHolder.Callback, 
 
     private void update() {
         if(touchHeld) {
-            cubeGuy.setYAcceleration(-defaultAcceleration/FPS);
+            cubeGuy.setYAcceleration(-defaultAcceleration);
         } else {
-            cubeGuy.setYAcceleration(defaultAcceleration/FPS);
+            cubeGuy.setYAcceleration(defaultAcceleration);
         }
 
         if(cubeGuy.getYPosition() > maxYPosition) {
@@ -98,7 +98,6 @@ public class GameSurface extends SurfaceView implements SurfaceHolder.Callback, 
             cubeGuy.stopMoving();
             cubeGuy.setYCoords(0);
         }
-        physicsEngine.update();
     }
 
 
@@ -122,6 +121,7 @@ public class GameSurface extends SurfaceView implements SurfaceHolder.Callback, 
         if(ourHolder.getSurface().isValid()) {
             canvas = ourHolder.lockCanvas();
             if(canvas == null) {
+                Log.d(LOG_TAG,"No canvas");
                 return;
             }
             canvas.drawBitmap(background,0,0,null);
@@ -137,11 +137,14 @@ public class GameSurface extends SurfaceView implements SurfaceHolder.Callback, 
     public void run() {
         long startTime = SystemClock.currentThreadTimeMillis();
         long prevValue = 0;
-        cubeGuy = new CubeGuy(defaultXPosition,minYPosition,defaultAcceleration/FPS,this);
+        long forFps, prevTime = 0;
+        cubeGuy = new CubeGuy(defaultXPosition,minYPosition,defaultAcceleration,this);
         physicsEngine = new PhysicsEngine(cubeGuy);
         while(running) {
             long currentTime = SystemClock.currentThreadTimeMillis() - startTime;
-            if(prevValue != currentTime && currentTime > 1000/FPS) {
+//            forFps = SystemClock.currentThreadTimeMillis() - prevTime;
+            if(currentTime > 1000/FPS) {
+//                prevTime = SystemClock.currentThreadTimeMillis();
                 startTime = SystemClock.currentThreadTimeMillis();
                 updateDraw(cubeGuy);
                 update();
