@@ -22,18 +22,21 @@ import android.view.SurfaceView;
 public class GameSurface extends SurfaceView implements SurfaceHolder.Callback, Runnable {
     private static String LOG_TAG = "GameSurface";
     private static int FPS = 60;
+    private static float defaultXPosition = 300;
+    private static float minYPosition = 0;
+    private static float maxYPosition;
+    private static float defaultAcceleration = 50;
     private Thread thread;
-    int bottomOfScreenChar;
-    int screenWidth;
-    int characterHeight;
-    int characterWidth;
-    int screenHeight;
-    boolean direction = true;
-    int position = 0;
-    int topOfScreenChar = 0;
+    private Bitmap background;
+    private PhysicsEngine physicsEngine;
+    private Sprite cubeGuy;
+    private int screenWidth;
+    private int characterHeight;
+    private int characterWidth;
+    private int screenHeight;
+    private boolean touchHeld = false;
     private boolean running;
-    private Rect rect;
-    private Paint myPaint;
+
     public GameSurface(Context context) {
         super(context);
         Activity fake = (Activity) context;
@@ -44,15 +47,13 @@ public class GameSurface extends SurfaceView implements SurfaceHolder.Callback, 
         characterHeight = (int) getResources().getDimension(R.dimen.character_height);
         characterWidth = (int) getResources().getDimension(R.dimen.character_width);
         screenHeight = size.y;
-        bottomOfScreenChar = (int)(screenHeight-1.4*characterHeight);
+        maxYPosition = screenHeight-(float)(characterHeight*1.5);
+        background = BitmapFactory.decodeResource(getResources(),R.drawable.pink_rice);
         getHolder().addCallback(this);
     }
 
     @Override
     public void surfaceCreated(SurfaceHolder holder) {
-        rect = new Rect(0,0,100,100);
-        myPaint = new Paint();
-        myPaint.setARGB(0,255,0,0);
         running = true;
         thread = new Thread(this);
         thread.start();
@@ -72,29 +73,37 @@ public class GameSurface extends SurfaceView implements SurfaceHolder.Callback, 
     @Override
     public boolean onTouchEvent(MotionEvent event) {
         if (event.getAction() == MotionEvent.ACTION_DOWN) {
-            direction = !direction;
+            touchHeld = true;
+        } else if(event.getAction() == MotionEvent.ACTION_UP) {
+            touchHeld = false;
+        } else  {
+            return super.onTouchEvent(event);
         }
-        return super.onTouchEvent(event);
+        return true;
     }
 
     private void update() {
-        if(direction) {
-            position+=40;
+        if(touchHeld) {
+            cubeGuy.setYAcceleration(-defaultAcceleration/FPS);
         } else {
-            position-=40;
+            cubeGuy.setYAcceleration(defaultAcceleration/FPS);
         }
 
-        if(position > screenWidth-characterWidth) {
-            direction = false;
+        if(cubeGuy.getYPosition() > maxYPosition) {
+            cubeGuy.stopMoving();
+            cubeGuy.setYCoords(maxYPosition);
         }
 
-        if(position < 0) {
-            direction = true;
+        if(cubeGuy.getYPosition() < 0) {
+            cubeGuy.stopMoving();
+            cubeGuy.setYCoords(0);
         }
+        physicsEngine.update();
     }
 
 
     private void destroyThread() {
+        Log.d(LOG_TAG,"rip thread");
         //Stop thread's loop
         running = false;
 
@@ -107,17 +116,18 @@ public class GameSurface extends SurfaceView implements SurfaceHolder.Callback, 
         }
     }
 
-    private void updateDraw(Bitmap background, Bitmap cube) {
+    private void updateDraw(Sprite... sprites) {
         Canvas canvas;
         SurfaceHolder ourHolder = getHolder();
         if(ourHolder.getSurface().isValid()) {
             canvas = ourHolder.lockCanvas();
             if(canvas == null) {
-                Log.d(LOG_TAG,"rip");
                 return;
             }
             canvas.drawBitmap(background,0,0,null);
-            canvas.drawBitmap(cube,position ,50,null);
+            for(Sprite sprite : sprites) {
+                canvas.drawBitmap(sprite.getBitmap(), sprite.getXPosition(), sprite.getYPosition(), null);
+            }
             ourHolder.unlockCanvasAndPost(canvas);
         }
     }
@@ -127,13 +137,13 @@ public class GameSurface extends SurfaceView implements SurfaceHolder.Callback, 
     public void run() {
         long startTime = SystemClock.currentThreadTimeMillis();
         long prevValue = 0;
-        Bitmap background = BitmapFactory.decodeResource(getResources(),R.drawable.pink_rice);
-        Bitmap cube = BitmapFactory.decodeResource(getResources(),R.drawable.cube);
-        while(true) {
+        cubeGuy = new CubeGuy(defaultXPosition,minYPosition,defaultAcceleration/FPS,this);
+        physicsEngine = new PhysicsEngine(cubeGuy);
+        while(running) {
             long currentTime = SystemClock.currentThreadTimeMillis() - startTime;
             if(prevValue != currentTime && currentTime > 1000/FPS) {
                 startTime = SystemClock.currentThreadTimeMillis();
-                updateDraw(background,cube);
+                updateDraw(cubeGuy);
                 update();
             }
         }
