@@ -4,10 +4,6 @@ import android.content.res.Resources;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 
-/**
- * Created by Ankit on 10/22/2016.
- */
-
 public abstract class Sprite {
     private float _xCoords;
     private float _yCoords;

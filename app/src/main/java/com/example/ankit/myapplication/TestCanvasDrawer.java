@@ -17,13 +17,8 @@ import android.view.SurfaceView;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
-import java.util.concurrent.ThreadLocalRandom;
 
-/**
- * Created by Ankit on 10/22/2016.
- */
-
-public class GameSurface extends SurfaceView implements SurfaceHolder.Callback, Runnable {
+public class TestCanvasDrawer extends SurfaceView implements SurfaceHolder.Callback, Runnable {
     private static String LOG_TAG = "GameSurface";
     private static int FPS = 80;
     private static float defaultCharacterXPosition = 300;
@@ -44,10 +39,10 @@ public class GameSurface extends SurfaceView implements SurfaceHolder.Callback, 
     private int obstacleWidth;
     private Random random = new Random();
     private boolean touchHeld = false;
-    public static boolean running;
+    private boolean running;
     private List<Sprite> spriteList;
 
-    public GameSurface(Context context) {
+    public TestCanvasDrawer(Context context) {
         super(context);
         Activity fake = (Activity) context;
         Display thisDisplay = fake.getWindowManager().getDefaultDisplay();
@@ -56,7 +51,7 @@ public class GameSurface extends SurfaceView implements SurfaceHolder.Callback, 
         screenWidth = size.x;
         Resources res = getResources();
         characterHeight = (int) res.getDimension(R.dimen.character_height);
-        characterWidth = (int) res.getDimension(R.dimen.character_width);
+        characterWidth = (int) res.getDimension(R.dimen.character_hitbox_width);
         obstacleHeight = (int) res.getDimension(R.dimen.obstacle_height);
         obstacleWidth = (int) res.getDimension(R.dimen.obstacle_width);
         screenHeight = size.y;
@@ -153,33 +148,11 @@ public class GameSurface extends SurfaceView implements SurfaceHolder.Callback, 
 
     @Override
     public void run() {
-        long startTime = SystemClock.currentThreadTimeMillis();
-        long prevValue = 0;
-        long forFps, prevTime = 0;
-        cubeGuy = new CubeGuy(defaultCharacterXPosition, minCharacterPosition,defaultAcceleration,this);
-        spriteList.add(cubeGuy);
-        Obstacle obstacle = new Obstacle(screenWidth,maxObstaclePosition,-10f,getResources(), R.drawable.osbtacles);
-        spriteList.add(obstacle);
-        Obstacle obstacle2 = new Obstacle(screenWidth,minObstaclePosition,-10f,getResources(), R.drawable.osbtacles);
-        spriteList.add(obstacle2);
-        physicsEngine = new PhysicsEngine(cubeGuy,getResources());
-        physicsEngine.addObstacles(obstacle,obstacle2);
-        for(int i = 0; i < 2; i++) {
-            Obstacle o = new Obstacle(screenWidth,generateRandomPosition() ,-10f,getResources(),R.drawable.osbtacles);
-            spriteList.add(o);
-            physicsEngine.addObstacles(o);
-        }
-        while(running) {
-            long currentTime = SystemClock.currentThreadTimeMillis() - startTime;
-//            forFps = SystemClock.currentThreadTimeMillis() - prevTime;
-            if(currentTime > 1000/FPS) {
-//                prevTime = SystemClock.currentThreadTimeMillis();
-                startTime = SystemClock.currentThreadTimeMillis();
-                updateDraw();
-                update();
-            }
-        }
-
-        Log.d(LOG_TAG,"you lose");
+        CubeGuy cg = new CubeGuy(50,50 + obstacleHeight,0,this);
+        Obstacle o  = new Obstacle(50,50 ,0,getResources(),R.drawable.osbtacles);
+        spriteList.add(cg);
+        spriteList.add(o);
+        updateDraw();
     }
+
 }

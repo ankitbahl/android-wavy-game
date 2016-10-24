@@ -15,5 +15,8 @@ public class MainActivity extends AppCompatActivity {
         setContentView(R.layout.activity_main);
         GameSurface game = new GameSurface(this);
         setContentView(game);
+
+//        TestCanvasDrawer test = new TestCanvasDrawer(this);
+//        setContentView(test);
     }
 }
