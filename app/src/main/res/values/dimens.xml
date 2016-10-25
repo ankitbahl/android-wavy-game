@@ -5,6 +5,7 @@
     <dimen name="character_height">53dp</dimen>
     <dimen name="character_width">61dp</dimen>
     <dimen name="obstacle_height">79dp</dimen>
+    <dimen name="obstacle_hitbox_height">79dp</dimen>
     <dimen name="obstacle_width">85dp</dimen>
     <dimen name="character_hitbox_width">49dp</dimen>
 </resources>

@@ -6,7 +6,10 @@ import android.content.res.Resources;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Canvas;
+import android.graphics.Paint;
 import android.graphics.Point;
+import android.graphics.Rect;
+import android.graphics.RectF;
 import android.os.SystemClock;
 import android.util.Log;
 import android.view.Display;
@@ -16,8 +19,9 @@ import android.view.SurfaceView;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Queue;
 import java.util.Random;
-import java.util.concurrent.ThreadLocalRandom;
+import java.util.concurrent.ArrayBlockingQueue;
 
 /**
  * Created by Ankit on 10/22/2016.
@@ -31,7 +35,7 @@ public class GameSurface extends SurfaceView implements SurfaceHolder.Callback, 
     private static float maxObstaclePosition = 0;
     private static float minObstaclePosition = 0;
     private static float maxCharacterPosition;
-    private static float defaultAcceleration = 3.5f;
+    private static float defaultAcceleration = 3f;
     private Thread thread;
     private Bitmap background;
     private PhysicsEngine physicsEngine;
@@ -39,6 +43,7 @@ public class GameSurface extends SurfaceView implements SurfaceHolder.Callback, 
     private int screenWidth;
     private int characterHeight;
     private int characterWidth;
+    private float characterHitboxWidth;
     private int screenHeight;
     private int obstacleHeight;
     private int obstacleWidth;
@@ -46,6 +51,7 @@ public class GameSurface extends SurfaceView implements SurfaceHolder.Callback, 
     private boolean touchHeld = false;
     public static boolean running;
     private List<Sprite> spriteList;
+    private Queue<Obstacle> obstacles;
 
     public GameSurface(Context context) {
         super(context);
@@ -56,9 +62,11 @@ public class GameSurface extends SurfaceView implements SurfaceHolder.Callback, 
         screenWidth = size.x;
         Resources res = getResources();
         characterHeight = (int) res.getDimension(R.dimen.character_height);
+        characterHitboxWidth = res.getDimension(R.dimen.character_hitbox_width);
         characterWidth = (int) res.getDimension(R.dimen.character_width);
         obstacleHeight = (int) res.getDimension(R.dimen.obstacle_height);
         obstacleWidth = (int) res.getDimension(R.dimen.obstacle_width);
+        obstacles = new ArrayBlockingQueue<>(10);
         screenHeight = size.y;
         maxCharacterPosition = screenHeight-(float)(characterHeight*1.5);
         maxObstaclePosition = screenHeight-(float)(obstacleHeight*1.3);
@@ -143,12 +151,30 @@ public class GameSurface extends SurfaceView implements SurfaceHolder.Callback, 
             for(Sprite sprite : spriteList) {
                 canvas.drawBitmap(sprite.getBitmap(), sprite.getXPosition(), sprite.getYPosition(), null);
             }
+
+            if(checkCollisions()) {
+                running = false;
+            }
+
             ourHolder.unlockCanvasAndPost(canvas);
         }
     }
 
     private float generateRandomPosition() {
         return (random.nextFloat() - minObstaclePosition)*maxObstaclePosition;
+    }
+
+    private boolean checkCollisions() {
+        Obstacle obstacle = obstacles.element();
+        if(obstacle.getXPosition() + obstacleWidth < cubeGuy.getXPosition()) {
+            obstacles.remove();
+            physicsEngine.removeObstacle();
+            spriteList.remove(obstacle);
+            obstacle = obstacles.element();
+        }
+        RectF rect1 = new RectF(cubeGuy.getXPosition(),cubeGuy.getYPosition(),cubeGuy.getXPosition() + characterHitboxWidth, cubeGuy.getYPosition() + characterHeight);
+        RectF rect2 = new RectF(obstacle.getXPosition(),obstacle.getYPosition() ,obstacle.getXPosition() + obstacleWidth, obstacle.getYPosition()+ obstacleHeight);
+        return RectF.intersects(rect1,rect2);
     }
 
     @Override
@@ -158,21 +184,25 @@ public class GameSurface extends SurfaceView implements SurfaceHolder.Callback, 
         long forFps, prevTime = 0;
         cubeGuy = new CubeGuy(defaultCharacterXPosition, minCharacterPosition,defaultAcceleration,this);
         spriteList.add(cubeGuy);
-        Obstacle obstacle = new Obstacle(screenWidth,maxObstaclePosition,-10f,getResources(), R.drawable.osbtacles);
+        int counter = 0;
+        Obstacle obstacle = new Obstacle(screenWidth,generateRandomPosition(),-10f,getResources(),R.drawable.osbtacles);
+        physicsEngine = new PhysicsEngine(cubeGuy);
+        physicsEngine.addObstacle(obstacle);
+        obstacles.add(obstacle);
         spriteList.add(obstacle);
-        Obstacle obstacle2 = new Obstacle(screenWidth,minObstaclePosition,-10f,getResources(), R.drawable.osbtacles);
-        spriteList.add(obstacle2);
-        physicsEngine = new PhysicsEngine(cubeGuy,getResources());
-        physicsEngine.addObstacles(obstacle,obstacle2);
-        for(int i = 0; i < 2; i++) {
-            Obstacle o = new Obstacle(screenWidth,generateRandomPosition() ,-10f,getResources(),R.drawable.osbtacles);
-            spriteList.add(o);
-            physicsEngine.addObstacles(o);
-        }
+        int numtimes = FPS;
         while(running) {
             long currentTime = SystemClock.currentThreadTimeMillis() - startTime;
 //            forFps = SystemClock.currentThreadTimeMillis() - prevTime;
             if(currentTime > 1000/FPS) {
+                counter++;
+                if(counter == numtimes) {
+                    counter = 0;
+                    obstacle = new Obstacle(screenWidth,generateRandomPosition(),-10f,getResources(),R.drawable.osbtacles);
+                    physicsEngine.addObstacle(obstacle);
+                    obstacles.add(obstacle);
+                    spriteList.add(obstacle);
+                }
 //                prevTime = SystemClock.currentThreadTimeMillis();
                 startTime = SystemClock.currentThreadTimeMillis();
                 updateDraw();
@@ -181,5 +211,14 @@ public class GameSurface extends SurfaceView implements SurfaceHolder.Callback, 
         }
 
         Log.d(LOG_TAG,"you lose");
+        try {
+            Thread.sleep(1000);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+        running = true;
+        spriteList.clear();
+        obstacles.clear();
+        run();
     }
 }
