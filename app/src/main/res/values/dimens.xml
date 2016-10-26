@@ -2,10 +2,10 @@
     <!-- Default screen margins, per the Android Design guidelines. -->
     <dimen name="activity_horizontal_margin">16dp</dimen>
     <dimen name="activity_vertical_margin">16dp</dimen>
-    <dimen name="character_height">53dp</dimen>
-    <dimen name="character_width">61dp</dimen>
-    <dimen name="obstacle_height">79dp</dimen>
-    <dimen name="obstacle_hitbox_height">79dp</dimen>
-    <dimen name="obstacle_width">85dp</dimen>
-    <dimen name="character_hitbox_width">49dp</dimen>
+    <dimen name="character_height">27dp</dimen>
+    <dimen name="character_width">31dp</dimen>
+    <dimen name="character_hitbox_width">25dp</dimen>
+    <dimen name="obstacle_height">40dp</dimen>
+    <dimen name="obstacle_hitbox_height">40dp</dimen>
+    <dimen name="obstacle_width">43dp</dimen>
 </resources>

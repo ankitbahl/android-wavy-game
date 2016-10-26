@@ -1,17 +1,16 @@
 package com.example.ankit.myapplication;
 
-import java.util.Queue;
-import java.util.concurrent.ArrayBlockingQueue;
+import java.util.LinkedList;
 
 import static com.example.ankit.myapplication.GameSurface.running;
 
 public class PhysicsEngine implements Runnable {
 
     private static final int updateTimeMS = 25;
-    private Queue<Obstacle> _obstacles;
+    private LinkedList<Obstacle> _obstacles;
     private CubeGuy _cubeGuy;
     public PhysicsEngine(CubeGuy cubeGuy) {
-        _obstacles = new ArrayBlockingQueue<>(10);
+        _obstacles = new LinkedList<>();
         _cubeGuy = cubeGuy;
         Thread thread = new Thread(this);
         thread.start();
@@ -27,6 +26,12 @@ public class PhysicsEngine implements Runnable {
         for(Sprite sprite: _obstacles) {
             updateSprite(sprite);
         }
+    }
+    public LinkedList<Obstacle> getObstacleList() {
+        return _obstacles;
+    }
+    public CubeGuy getCubeGuy() {
+        return _cubeGuy;
     }
 
     private void updateSprite(Sprite sprite) {

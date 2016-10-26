@@ -148,8 +148,8 @@ public class TestCanvasDrawer extends SurfaceView implements SurfaceHolder.Callb
 
     @Override
     public void run() {
-        CubeGuy cg = new CubeGuy(50,50 + obstacleHeight,0,this);
-        Obstacle o  = new Obstacle(50,50 ,0,getResources(),R.drawable.osbtacles);
+        CubeGuy cg = new CubeGuy(50,50 + obstacleHeight,0);
+        Obstacle o  = new Obstacle(50,50 ,0);
         spriteList.add(cg);
         spriteList.add(o);
         updateDraw();
