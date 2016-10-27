@@ -2,11 +2,13 @@ package com.example.ankit.myapplication;
 
 import android.app.Activity;
 import android.content.Context;
+import android.content.SharedPreferences;
 import android.content.res.Resources;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Canvas;
 import android.graphics.Color;
+import android.graphics.Paint;
 import android.graphics.Point;
 import android.graphics.PorterDuff;
 import android.graphics.RectF;
@@ -30,13 +32,18 @@ public class GameSurface extends SurfaceView implements SurfaceHolder.Callback, 
     private static String LOG_TAG = "GameSurface";
 
     private static final int FPS = 80;
+    private static final String HIGH_SCORE_KEY ="high_score";
     private static final float defaultCharacterXPosition = 300;
+    private static float defaultCharacterYPosition;
     private static final float minCharacterPosition = 0;
     private static final float minObstaclePosition = 0;
     private static final float defaultObstacleSpeed = -10f;
     private static final float defaultAcceleration = 2.5f;
     private static final int objectsPerSecond = 2;
     private static boolean gameOver = false;
+    private static int score = 0;
+    private static int highScore = 0;
+    private static boolean gameStarted = false;
 
     private static float maxCharacterPosition;
     private static float maxObstaclePosition;
@@ -51,6 +58,8 @@ public class GameSurface extends SurfaceView implements SurfaceHolder.Callback, 
     private Bitmap background;
     private PhysicsEngine physicsEngine;
     private CubeGuy cubeGuy;
+    private SharedPreferences sharedPreferences;
+
 
     private Random random = new Random();
     public static boolean running;
@@ -68,7 +77,22 @@ public class GameSurface extends SurfaceView implements SurfaceHolder.Callback, 
         generateDimensionalConstants(context);
         setBitmaps(getResources());
         getHolder().addCallback(this);
-   }
+        sharedPreferences = context.getSharedPreferences(HIGH_SCORE_KEY,Context.MODE_PRIVATE);
+        getHighScore();
+    }
+
+    private void getHighScore() {
+        highScore = sharedPreferences.getInt(HIGH_SCORE_KEY,0);
+    }
+
+    private void writeHighScore() {
+        if(score > highScore) {
+            SharedPreferences.Editor editor = sharedPreferences.edit();
+            editor.putInt(HIGH_SCORE_KEY,score);
+            editor.commit();
+            highScore = score;
+        }
+    }
 
     /**
      * generates dimensional constants such as size of various sprites and screens, assigns to global
@@ -89,6 +113,7 @@ public class GameSurface extends SurfaceView implements SurfaceHolder.Callback, 
         float screenHeight = size.y;
         maxCharacterPosition = screenHeight -(float)(characterHeight*1.5);
         maxObstaclePosition = screenHeight -(float)(obstacleHeight*1.3);
+        defaultCharacterYPosition = screenHeight/2 - characterHeight;
     }
 
     /**
@@ -135,6 +160,9 @@ public class GameSurface extends SurfaceView implements SurfaceHolder.Callback, 
     @Override
     public boolean onTouchEvent(MotionEvent event) {
         if (event.getAction() == MotionEvent.ACTION_DOWN) {
+            if(!gameStarted) {
+                gameStarted = true;
+            }
             cubeGuy.setYAcceleration(-defaultAcceleration);
         } else if(event.getAction() == MotionEvent.ACTION_UP) {
             cubeGuy.setYAcceleration(defaultAcceleration);
@@ -148,15 +176,15 @@ public class GameSurface extends SurfaceView implements SurfaceHolder.Callback, 
      * called often to keep cubeGuy within the bounds of the screen
      */
     private void updateCubeGuyState() {
-        if(cubeGuy.getYPosition() > maxCharacterPosition) {
-            cubeGuy.stopMoving();
-            cubeGuy.setYCoords(maxCharacterPosition);
-        }
-
-        if(cubeGuy.getYPosition() < 0) {
-            cubeGuy.stopMoving();
-            cubeGuy.setYCoords(0);
-        }
+//        if(cubeGuy.getYPosition() > maxCharacterPosition) {
+//            cubeGuy.stopMoving();
+//            cubeGuy.setYCoords(maxCharacterPosition);
+//        }
+//
+//        if(cubeGuy.getYPosition() < 0) {
+//            cubeGuy.stopMoving();
+//            cubeGuy.setYCoords(0);
+//        }
     }
 
     /**
@@ -192,7 +220,32 @@ public class GameSurface extends SurfaceView implements SurfaceHolder.Callback, 
             for(Sprite sprite : drawList) {
                 canvas.drawBitmap(sprite.getBitmap(), sprite.getXPosition(), sprite.getYPosition(), null);
             }
+            Paint paint = new Paint();
+            paint.setColor(Color.BLACK);
+            paint.setTextSize(60);
+            canvas.drawText("Score: " + Integer.toString(score),50,100,paint);
+            canvas.drawText("High Score: " + Integer.toString(highScore),screenWidth - 500,100,paint);
+            ourHolder.unlockCanvasAndPost(canvas);
+        }
+    }
 
+    private void promptStart() {
+        Canvas canvas;
+        SurfaceHolder ourHolder = getHolder();
+        if(ourHolder.getSurface().isValid()) {
+            canvas = ourHolder.lockCanvas();
+            if(canvas == null) {
+                Log.d(LOG_TAG,"No canvas");
+                return;
+            }
+            canvas.drawBitmap(background,0,0,null);
+            canvas.drawBitmap(cubeGuy.getBitmap(), cubeGuy.getXPosition(), cubeGuy.getYPosition(), null);
+            Paint paint = new Paint();
+            paint.setColor(Color.BLACK);
+            paint.setTextSize(60);
+            canvas.drawText("Score: " + Integer.toString(score),50,100,paint);
+            canvas.drawText("High Score: " + Integer.toString(highScore),screenWidth - 500,100,paint);
+            canvas.drawText("Touch and hold screen ",screenWidth/2 - 300,200,paint);
             ourHolder.unlockCanvasAndPost(canvas);
         }
     }
@@ -230,10 +283,19 @@ public class GameSurface extends SurfaceView implements SurfaceHolder.Callback, 
     }
 
     /**
-     * check if there are any collisions with the front most obstacle
+     * check if there are any collisions with cube guy
      * @return
      */
     private boolean checkCollisions() {
+
+        // check if cubeguy has gone offscreen
+        if(cubeGuy.getYPosition() < - characterHeight/2 || cubeGuy.getYPosition() > maxCharacterPosition) {
+            gameOver = true;
+            running = false;
+        }
+
+
+        // check if cubeguy has collided with an obstacle
         LinkedList<Obstacle> obstacles = physicsEngine.getObstacleList();
         Obstacle obstacle = physicsEngine.getObstacleList().element();
         if(obstacle.getXPosition() + obstacleWidth < 0) {
@@ -257,8 +319,11 @@ public class GameSurface extends SurfaceView implements SurfaceHolder.Callback, 
 //        long forFps, prevTime = 0;
 
         // create main character
-        cubeGuy = new CubeGuy(defaultCharacterXPosition, minCharacterPosition,defaultAcceleration);
-
+        cubeGuy = new CubeGuy(defaultCharacterXPosition, defaultCharacterYPosition,defaultAcceleration);
+        promptStart();
+        while(!gameStarted) {
+            //wait for game to start
+        }
         // initialize engine for handling game physics
         physicsEngine = new PhysicsEngine(cubeGuy);
 
@@ -267,6 +332,7 @@ public class GameSurface extends SurfaceView implements SurfaceHolder.Callback, 
         int counter = 0;
         generateRandomObstacle();
         int numTimes = FPS/objectsPerSecond;
+
         while(running) {
             long currentTime = SystemClock.currentThreadTimeMillis() - startTime;
 //            forFps = SystemClock.currentThreadTimeMillis() - prevTime;
@@ -274,6 +340,7 @@ public class GameSurface extends SurfaceView implements SurfaceHolder.Callback, 
                 counter++;
                 if(counter == numTimes) {
                     counter = 0;
+                    score++;
                     generateRandomObstacle();
                 }
 //                prevTime = SystemClock.currentThreadTimeMillis();
@@ -294,10 +361,13 @@ public class GameSurface extends SurfaceView implements SurfaceHolder.Callback, 
         }
         drawList.clear();
         physicsEngine.getObstacleList().clear();
-        if(gameOver = true) {
+        if(gameOver) {
             Log.d(LOG_TAG,"game over");
             gameOver = false;
             running = true;
+            writeHighScore();
+            score = 0;
+            gameStarted = false;
             run();
         }
         clearCanvas();
