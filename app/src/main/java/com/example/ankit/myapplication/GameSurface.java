@@ -343,6 +343,7 @@ public class GameSurface extends SurfaceView implements SurfaceHolder.Callback, 
         } catch (InterruptedException e) {
             e.printStackTrace();
         }
+        gameStarted = false;
         long startTime = SystemClock.currentThreadTimeMillis();
 //        long prevValue = 0;
 //        long forFps, prevTime = 0;
