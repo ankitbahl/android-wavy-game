@@ -1,16 +1,18 @@
 package com.example.ankit.myapplication;
 
-import java.util.LinkedList;
+import android.util.Log;
+
+import java.util.concurrent.ConcurrentLinkedQueue;
 
 import static com.example.ankit.myapplication.GameSurface.running;
 
 public class PhysicsEngine implements Runnable {
 
     private static final int updateTimeMS = 25;
-    private LinkedList<Obstacle> _obstacles;
+    private ConcurrentLinkedQueue<Obstacle> _obstacles;
     private CubeGuy _cubeGuy;
     public PhysicsEngine(CubeGuy cubeGuy) {
-        _obstacles = new LinkedList<>();
+        _obstacles = new ConcurrentLinkedQueue<>();
         _cubeGuy = cubeGuy;
         Thread thread = new Thread(this);
         thread.start();
@@ -27,7 +29,7 @@ public class PhysicsEngine implements Runnable {
             updateSprite(sprite);
         }
     }
-    public LinkedList<Obstacle> getObstacleList() {
+    public ConcurrentLinkedQueue<Obstacle> getObstacleList() {
         return _obstacles;
     }
     public CubeGuy getCubeGuy() {

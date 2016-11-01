@@ -2,6 +2,7 @@ package com.example.ankit.myapplication;
 
 import android.app.Activity;
 import android.content.Context;
+import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.res.Resources;
 import android.graphics.Bitmap;
@@ -20,9 +21,11 @@ import android.view.SurfaceHolder;
 import android.view.SurfaceView;
 
 import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Random;
+import java.util.concurrent.ConcurrentLinkedQueue;
 
 /**
  * Created by Ankit on 10/22/2016.
@@ -54,11 +57,12 @@ public class GameSurface extends SurfaceView implements SurfaceHolder.Callback, 
     private static float obstacleWidth;
     private static float obstacleHeight;
 
-    private Thread thread;
+    private Canvas canvas;
     private Bitmap background;
     private PhysicsEngine physicsEngine;
     private CubeGuy cubeGuy;
     private SharedPreferences sharedPreferences;
+    private Thread thread;
 
 
     private Random random = new Random();
@@ -72,13 +76,7 @@ public class GameSurface extends SurfaceView implements SurfaceHolder.Callback, 
      */
     public GameSurface(Context context) {
         super(context);
-        background = BitmapFactory.decodeResource(getResources(),R.drawable.pink_rice);
-        drawList = new ArrayList<>();
-        generateDimensionalConstants(context);
-        setBitmaps(getResources());
         getHolder().addCallback(this);
-        sharedPreferences = context.getSharedPreferences(HIGH_SCORE_KEY,Context.MODE_PRIVATE);
-        getHighScore();
     }
 
     private void getHighScore() {
@@ -89,7 +87,7 @@ public class GameSurface extends SurfaceView implements SurfaceHolder.Callback, 
         if(score > highScore) {
             SharedPreferences.Editor editor = sharedPreferences.edit();
             editor.putInt(HIGH_SCORE_KEY,score);
-            editor.commit();
+            editor.apply();
             highScore = score;
         }
     }
@@ -132,14 +130,22 @@ public class GameSurface extends SurfaceView implements SurfaceHolder.Callback, 
      */
     @Override
     public void surfaceCreated(SurfaceHolder holder) {
+        Log.d(LOG_TAG,"surface started");
+        background = BitmapFactory.decodeResource(getResources(),R.drawable.pink_rice);
+        drawList = new ArrayList<>();
+        generateDimensionalConstants(getContext());
+        setBitmaps(getResources());
+        sharedPreferences = getContext().getSharedPreferences(HIGH_SCORE_KEY,Context.MODE_PRIVATE);
+        getHighScore();
         running = true;
+        gameOver = false;
+        Log.d(LOG_TAG,"thread started");
         thread = new Thread(this);
         thread.start();
     }
 
     @Override
     public void surfaceChanged(SurfaceHolder holder, int format, int width, int height) {
-        Log.d(LOG_TAG,"Surface changed??");
     }
 
     /**
@@ -148,8 +154,10 @@ public class GameSurface extends SurfaceView implements SurfaceHolder.Callback, 
      */
     @Override
     public void surfaceDestroyed(SurfaceHolder holder) {
-        Log.d(LOG_TAG,"Surface destroyed??");
         destroyThread();
+        if(canvas != null) {
+            holder.unlockCanvasAndPost(canvas);
+        }
     }
 
     /**
@@ -191,24 +199,16 @@ public class GameSurface extends SurfaceView implements SurfaceHolder.Callback, 
      * cleanup for thread
      */
     private void destroyThread() {
-        Log.d(LOG_TAG,"rip thread");
+        Log.d(LOG_TAG,"thread stopping");
         //Stop thread's loop
         running = false;
-
-        //Try to join thread with UI thread
-        boolean retry = true;
-        while (retry)
-        {
-            try {thread.join(); retry = false;}
-            catch (InterruptedException e) {}
-        }
     }
 
     /**
      * redraw based on the state of the sprites
      */
     private void updateDraw() {
-        Canvas canvas;
+        canvas = null;
         SurfaceHolder ourHolder = getHolder();
         if(ourHolder.getSurface().isValid()) {
             canvas = ourHolder.lockCanvas();
@@ -218,7 +218,9 @@ public class GameSurface extends SurfaceView implements SurfaceHolder.Callback, 
             }
             canvas.drawBitmap(background,0,0,null);
             for(Sprite sprite : drawList) {
-                canvas.drawBitmap(sprite.getBitmap(), sprite.getXPosition(), sprite.getYPosition(), null);
+                if(running) {
+                    canvas.drawBitmap(sprite.getBitmap(), sprite.getXPosition(), sprite.getYPosition(), null);
+                }
             }
             Paint paint = new Paint();
             paint.setColor(Color.BLACK);
@@ -226,6 +228,7 @@ public class GameSurface extends SurfaceView implements SurfaceHolder.Callback, 
             canvas.drawText("Score: " + Integer.toString(score),50,100,paint);
             canvas.drawText("High Score: " + Integer.toString(highScore),screenWidth - 500,100,paint);
             ourHolder.unlockCanvasAndPost(canvas);
+            canvas = null;
         }
     }
 
@@ -296,17 +299,23 @@ public class GameSurface extends SurfaceView implements SurfaceHolder.Callback, 
 
 
         // check if cubeguy has collided with an obstacle
-        LinkedList<Obstacle> obstacles = physicsEngine.getObstacleList();
+        ConcurrentLinkedQueue<Obstacle> obstacles = physicsEngine.getObstacleList();
         Obstacle obstacle = physicsEngine.getObstacleList().element();
         if(obstacle.getXPosition() + obstacleWidth < 0) {
-            obstacles.removeFirst();
+            obstacles.remove();
             obstacle = obstacles.element();
         } else if(obstacle.getXPosition() + obstacleWidth < cubeGuy.getXPosition()) {
-            obstacle = obstacles.get(1);
+            obstacle = getSecondElement(obstacles);
         }
         RectF rect1 = new RectF(cubeGuy.getXPosition(),cubeGuy.getYPosition(),cubeGuy.getXPosition() + characterHitboxWidth, cubeGuy.getYPosition() + characterHeight);
         RectF rect2 = new RectF(obstacle.getXPosition(),obstacle.getYPosition() ,obstacle.getXPosition() + obstacleWidth, obstacle.getYPosition()+ obstacleHeight);
         return RectF.intersects(rect1,rect2);
+    }
+
+    private Obstacle getSecondElement(ConcurrentLinkedQueue<Obstacle> queue) {
+        Iterator<Obstacle> iterator = queue.iterator();
+        iterator.next();
+        return iterator.next();
     }
 
     @Override
@@ -314,6 +323,7 @@ public class GameSurface extends SurfaceView implements SurfaceHolder.Callback, 
      * main ui thread being run
      */
     public void run() {
+        Log.d(LOG_TAG,"oh shit");
         long startTime = SystemClock.currentThreadTimeMillis();
 //        long prevValue = 0;
 //        long forFps, prevTime = 0;
@@ -321,10 +331,12 @@ public class GameSurface extends SurfaceView implements SurfaceHolder.Callback, 
         // create main character
         cubeGuy = new CubeGuy(defaultCharacterXPosition, defaultCharacterYPosition,defaultAcceleration);
         promptStart();
+        int i = 0;
         while(!gameStarted) {
             //wait for game to start
         }
         // initialize engine for handling game physics
+        Log.wtf(LOG_TAG,"created wat");
         physicsEngine = new PhysicsEngine(cubeGuy);
 
         // add main character to list of sprites to be drawn
@@ -336,7 +348,7 @@ public class GameSurface extends SurfaceView implements SurfaceHolder.Callback, 
         while(running) {
             long currentTime = SystemClock.currentThreadTimeMillis() - startTime;
 //            forFps = SystemClock.currentThreadTimeMillis() - prevTime;
-            if(currentTime > 1000/FPS) {
+            if(running && currentTime > 1000/FPS) {
                 counter++;
                 if(counter == numTimes) {
                     counter = 0;
@@ -347,27 +359,31 @@ public class GameSurface extends SurfaceView implements SurfaceHolder.Callback, 
                 startTime = SystemClock.currentThreadTimeMillis();
                 updateCubeGuyState();
                 updateDraw();
-                if(checkCollisions()) {
+                if( running && checkCollisions()) {
                     running = false;
                     gameOver = true;
                 }
             }
         }
-
+        if(drawList != null) {
+            drawList.clear();
+        }
+        if(physicsEngine != null && physicsEngine.getObstacleList() != null) {
+            physicsEngine.getObstacleList().clear();
+        }
+        physicsEngine = null;
+        gameStarted = false;
         try {
             Thread.sleep(1000);
         } catch (InterruptedException e) {
             e.printStackTrace();
         }
-        drawList.clear();
-        physicsEngine.getObstacleList().clear();
         if(gameOver) {
             Log.d(LOG_TAG,"game over");
             gameOver = false;
             running = true;
             writeHighScore();
             score = 0;
-            gameStarted = false;
             run();
         }
         clearCanvas();
