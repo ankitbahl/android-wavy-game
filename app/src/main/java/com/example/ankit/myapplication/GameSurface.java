@@ -34,6 +34,7 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 public class GameSurface extends SurfaceView implements SurfaceHolder.Callback, Runnable {
     private static String LOG_TAG = "GameSurface";
 
+    private static boolean threadExists = false;
     private static final int FPS = 80;
     private static final String HIGH_SCORE_KEY ="high_score";
     private static final float defaultCharacterXPosition = 300;
@@ -57,9 +58,9 @@ public class GameSurface extends SurfaceView implements SurfaceHolder.Callback, 
     private static float obstacleWidth;
     private static float obstacleHeight;
 
-    private Canvas canvas;
+    private static Canvas canvas;
     private Bitmap background;
-    private PhysicsEngine physicsEngine;
+    private static PhysicsEngine physicsEngine;
     private CubeGuy cubeGuy;
     private SharedPreferences sharedPreferences;
     private Thread thread;
@@ -130,18 +131,19 @@ public class GameSurface extends SurfaceView implements SurfaceHolder.Callback, 
      */
     @Override
     public void surfaceCreated(SurfaceHolder holder) {
-        Log.d(LOG_TAG,"surface started");
-        background = BitmapFactory.decodeResource(getResources(),R.drawable.pink_rice);
-        drawList = new ArrayList<>();
-        generateDimensionalConstants(getContext());
-        setBitmaps(getResources());
-        sharedPreferences = getContext().getSharedPreferences(HIGH_SCORE_KEY,Context.MODE_PRIVATE);
-        getHighScore();
-        running = true;
-        gameOver = false;
-        Log.d(LOG_TAG,"thread started");
-        thread = new Thread(this);
-        thread.start();
+        if(!threadExists) {
+            threadExists = true;
+            background = BitmapFactory.decodeResource(getResources(), R.drawable.pink_rice);
+            drawList = new ArrayList<>();
+            generateDimensionalConstants(getContext());
+            setBitmaps(getResources());
+            sharedPreferences = getContext().getSharedPreferences(HIGH_SCORE_KEY, Context.MODE_PRIVATE);
+            getHighScore();
+            running = true;
+            gameOver = false;
+            thread = new Thread(this);
+            thread.start();
+        }
     }
 
     @Override
@@ -154,10 +156,8 @@ public class GameSurface extends SurfaceView implements SurfaceHolder.Callback, 
      */
     @Override
     public void surfaceDestroyed(SurfaceHolder holder) {
+        unlockCanvas(holder);
         destroyThread();
-        if(canvas != null) {
-            holder.unlockCanvasAndPost(canvas);
-        }
     }
 
     /**
@@ -199,79 +199,93 @@ public class GameSurface extends SurfaceView implements SurfaceHolder.Callback, 
      * cleanup for thread
      */
     private void destroyThread() {
-        Log.d(LOG_TAG,"thread stopping");
         //Stop thread's loop
         running = false;
+        threadExists = false;
     }
 
     /**
      * redraw based on the state of the sprites
      */
     private void updateDraw() {
-        canvas = null;
         SurfaceHolder ourHolder = getHolder();
         if(ourHolder.getSurface().isValid()) {
+            if(canvas != null) {
+                unlockCanvas(ourHolder);
+            }
             canvas = ourHolder.lockCanvas();
-            if(canvas == null) {
-                Log.d(LOG_TAG,"No canvas");
-                return;
-            }
-            canvas.drawBitmap(background,0,0,null);
-            for(Sprite sprite : drawList) {
-                if(running) {
-                    canvas.drawBitmap(sprite.getBitmap(), sprite.getXPosition(), sprite.getYPosition(), null);
+            if(canvas != null) {
+                canvas.drawBitmap(background,0,0,null);
+                for(Sprite sprite : drawList) {
+                    if(running) {
+                        try {
+                            canvas.drawBitmap(sprite.getBitmap(), sprite.getXPosition(), sprite.getYPosition(), null);
+                        } catch (NullPointerException e) {
+                            running = false;
+                            gameOver = true;
+                            return;
+                        }
+                    }
                 }
+                Paint paint = new Paint();
+                paint.setColor(Color.BLACK);
+                paint.setTextSize(60);
+                canvas.drawText("Score: " + Integer.toString(score),50,100,paint);
+                canvas.drawText("High Score: " + Integer.toString(highScore),screenWidth - 500,100,paint);
+                try {
+                    ourHolder.unlockCanvasAndPost(canvas);
+                } catch (IllegalArgumentException e) {
+                }
+                canvas = null;
             }
-            Paint paint = new Paint();
-            paint.setColor(Color.BLACK);
-            paint.setTextSize(60);
-            canvas.drawText("Score: " + Integer.toString(score),50,100,paint);
-            canvas.drawText("High Score: " + Integer.toString(highScore),screenWidth - 500,100,paint);
-            ourHolder.unlockCanvasAndPost(canvas);
-            canvas = null;
         }
     }
 
     private void promptStart() {
-        Canvas canvas;
         SurfaceHolder ourHolder = getHolder();
         if(ourHolder.getSurface().isValid()) {
-            canvas = ourHolder.lockCanvas();
-            if(canvas == null) {
-                Log.d(LOG_TAG,"No canvas");
-                return;
+            if(canvas != null) {
+                unlockCanvas(ourHolder);
             }
-            canvas.drawBitmap(background,0,0,null);
-            canvas.drawBitmap(cubeGuy.getBitmap(), cubeGuy.getXPosition(), cubeGuy.getYPosition(), null);
-            Paint paint = new Paint();
-            paint.setColor(Color.BLACK);
-            paint.setTextSize(60);
-            canvas.drawText("Score: " + Integer.toString(score),50,100,paint);
-            canvas.drawText("High Score: " + Integer.toString(highScore),screenWidth - 500,100,paint);
-            canvas.drawText("Touch and hold screen ",screenWidth/2 - 300,200,paint);
-            ourHolder.unlockCanvasAndPost(canvas);
+            canvas = ourHolder.lockCanvas();
+            if(canvas != null) {
+                canvas.drawBitmap(background,0,0,null);
+                canvas.drawBitmap(cubeGuy.getBitmap(), cubeGuy.getXPosition(), cubeGuy.getYPosition(), null);
+                Paint paint = new Paint();
+                paint.setColor(Color.BLACK);
+                paint.setTextSize(60);
+                canvas.drawText("Score: " + Integer.toString(score),50,100,paint);
+                canvas.drawText("High Score: " + Integer.toString(highScore),screenWidth - 500,100,paint);
+                canvas.drawText("Touch and hold screen ",screenWidth/2 - 300,200,paint);
+                ourHolder.unlockCanvasAndPost(canvas);
+                canvas = null;
+            }
         }
     }
-
-    /**
-     * clears all drawings on screen
-     */
-    private void clearCanvas() {
-        Canvas canvas;
+    private void drawBackground() {
         SurfaceHolder ourHolder = getHolder();
         if(ourHolder.getSurface().isValid()) {
-            canvas = ourHolder.lockCanvas();
-            if (canvas == null) {
-                Log.d(LOG_TAG, "No canvas");
-                return;
+            if(canvas != null) {
+                unlockCanvas(ourHolder);
             }
-            canvas.drawColor(Color.TRANSPARENT, PorterDuff.Mode.CLEAR);
+            canvas = ourHolder.lockCanvas();
+            if(canvas != null) {
+                canvas.drawBitmap(background,0,0,null);
+                ourHolder.unlockCanvasAndPost(canvas);
+                canvas = null;
+            }
         }
     }
-
 
     private float generateRandomPosition() {
         return (random.nextFloat() - minObstaclePosition)*maxObstaclePosition;
+    }
+
+    private void unlockCanvas(SurfaceHolder holder) {
+        if(canvas != null) {
+            holder.unlockCanvasAndPost(canvas);
+            canvas = null;
+        }
     }
 
     /**
@@ -323,7 +337,12 @@ public class GameSurface extends SurfaceView implements SurfaceHolder.Callback, 
      * main ui thread being run
      */
     public void run() {
-        Log.d(LOG_TAG,"oh shit");
+        drawBackground();
+        try {
+            Thread.sleep(300);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
         long startTime = SystemClock.currentThreadTimeMillis();
 //        long prevValue = 0;
 //        long forFps, prevTime = 0;
@@ -334,9 +353,11 @@ public class GameSurface extends SurfaceView implements SurfaceHolder.Callback, 
         int i = 0;
         while(!gameStarted) {
             //wait for game to start
+            if(!running) {
+                return;
+            }
         }
         // initialize engine for handling game physics
-        Log.wtf(LOG_TAG,"created wat");
         physicsEngine = new PhysicsEngine(cubeGuy);
 
         // add main character to list of sprites to be drawn
@@ -373,19 +394,14 @@ public class GameSurface extends SurfaceView implements SurfaceHolder.Callback, 
         }
         physicsEngine = null;
         gameStarted = false;
-        try {
-            Thread.sleep(1000);
-        } catch (InterruptedException e) {
-            e.printStackTrace();
-        }
+        unlockCanvas(getHolder());
         if(gameOver) {
-            Log.d(LOG_TAG,"game over");
             gameOver = false;
             running = true;
             writeHighScore();
             score = 0;
             run();
         }
-        clearCanvas();
+        threadExists = false;
     }
 }
