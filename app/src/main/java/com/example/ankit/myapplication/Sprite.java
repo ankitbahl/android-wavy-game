@@ -13,7 +13,7 @@ public abstract class Sprite {
     private float _xAcceleration;
     private float _yAcceleration;
     private SpriteType _spriteType;
-    protected Sprite(float x, float y, float xVelocity, float yVelocity, float xAcceleration, float yAcceleration, SpriteType spriteType) {
+    Sprite(float x, float y, float xVelocity, float yVelocity, float xAcceleration, float yAcceleration, SpriteType spriteType) {
         if(INITIALIZED) {
             _xCoords = x;
             _yCoords = y;
@@ -26,18 +26,18 @@ public abstract class Sprite {
             throw new RuntimeException("Sprite bitmaps have not been initialized!");
         }
     }
-    public static void setBitmaps(Bitmap cubeGuyBMP, Bitmap obstacleBMP) {
+    static void setBitmaps(Bitmap cubeGuyBMP, Bitmap obstacleBMP) {
         CUBE_GUY_BMP = cubeGuyBMP;
         OBSTACLE_BMP = obstacleBMP;
         INITIALIZED = true;
     }
-    public float getXPosition() {return _xCoords;}
-    public float getYPosition() {return _yCoords;}
-    public float getXVelocity() {return _xVelocity;}
-    public float getYVelocity() {return _yVelocity;}
-    public float getXAcceleration() {return _xAcceleration;}
-    public float getYAcceleration() {return _yAcceleration;}
-    public Bitmap getBitmap() {
+    float getXPosition() {return _xCoords;}
+    float getYPosition() {return _yCoords;}
+    float getXVelocity() {return _xVelocity;}
+    float getYVelocity() {return _yVelocity;}
+    float getXAcceleration() {return _xAcceleration;}
+    float getYAcceleration() {return _yAcceleration;}
+    Bitmap getBitmap() {
         switch (this._spriteType) {
             case CUBE_GUY:
                 return CUBE_GUY_BMP;
@@ -48,38 +48,38 @@ public abstract class Sprite {
         }
     }
 
-    public void incrementXCoords(float x) {
+    void incrementXCoords(float x) {
         _xCoords += x;
     }
-    public void incrementYCoords(float y) {
+    void incrementYCoords(float y) {
         _yCoords += y;
     }
     public void setXCoords(float x) {
         _xCoords = x;
     }
-    public void setYCoords(float y) {
+    void setYCoords(float y) {
         _yCoords = y;
     }
-    public void incrementXVelocity(float x) {
+    void incrementXVelocity(float x) {
         _xVelocity += x;
     }
-    public void incrementYVelocity(float y) {
+    void incrementYVelocity(float y) {
         _yVelocity += y;
     }
     protected void setXAcceleration(float x) {
         _xAcceleration = x;
     }
-    protected void setYAcceleration(float y) {
+    void setYAcceleration(float y) {
         _yAcceleration = y;
     }
-    public void stopMoving() {
+    void stopMoving() {
         _xAcceleration = 0;
         _yAcceleration = 0;
         _xVelocity = 0;
         _yVelocity = 0;
     }
 
-    public enum SpriteType {
+    enum SpriteType {
         CUBE_GUY,
         OBSTACLE
     }

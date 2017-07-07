@@ -167,10 +167,8 @@ public class GameSurface extends SurfaceView implements SurfaceHolder.Callback, 
      */
     @Override
     public boolean onTouchEvent(MotionEvent event) {
+        gameStarted = true;
         if (event.getAction() == MotionEvent.ACTION_DOWN) {
-            if(!gameStarted) {
-                gameStarted = true;
-            }
             cubeGuy.setYAcceleration(-defaultAcceleration);
         } else if(event.getAction() == MotionEvent.ACTION_UP) {
             cubeGuy.setYAcceleration(defaultAcceleration);
@@ -178,21 +176,6 @@ public class GameSurface extends SurfaceView implements SurfaceHolder.Callback, 
             return super.onTouchEvent(event);
         }
         return true;
-    }
-
-    /**
-     * called often to keep cubeGuy within the bounds of the screen
-     */
-    private void updateCubeGuyState() {
-//        if(cubeGuy.getYPosition() > maxCharacterPosition) {
-//            cubeGuy.stopMoving();
-//            cubeGuy.setYCoords(maxCharacterPosition);
-//        }
-//
-//        if(cubeGuy.getYPosition() < 0) {
-//            cubeGuy.stopMoving();
-//            cubeGuy.setYCoords(0);
-//        }
     }
 
     /**
@@ -270,7 +253,7 @@ public class GameSurface extends SurfaceView implements SurfaceHolder.Callback, 
             }
             canvas = ourHolder.lockCanvas();
             if(canvas != null) {
-                canvas.drawBitmap(background,0,0,null);
+                canvas.drawBitmap(background, 0, 0, null);
                 ourHolder.unlockCanvasAndPost(canvas);
                 canvas = null;
             }
@@ -278,7 +261,7 @@ public class GameSurface extends SurfaceView implements SurfaceHolder.Callback, 
     }
 
     private float generateRandomPosition() {
-        return (random.nextFloat() - minObstaclePosition)*maxObstaclePosition;
+        return (random.nextFloat() - minObstaclePosition) * maxObstaclePosition;
     }
 
     private void unlockCanvas(SurfaceHolder holder) {
@@ -379,7 +362,6 @@ public class GameSurface extends SurfaceView implements SurfaceHolder.Callback, 
                 }
 //                prevTime = SystemClock.currentThreadTimeMillis();
                 startTime = SystemClock.currentThreadTimeMillis();
-                updateCubeGuyState();
                 updateDraw();
                 if( running && checkCollisions()) {
                     running = false;
